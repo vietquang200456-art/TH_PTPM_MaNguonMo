@@ -1,0 +1,18 @@
+# Prevent PHP execution in uploads directory
+<FilesMatch "\.(php|php3|php4|php5|php7|php8|phtml|pht|phps)$">
+    Order Allow,Deny
+    Deny from all
+</FilesMatch>
+
+# Only allow image files
+<FilesMatch "\.(jpg|jpeg|png|gif|webp|bmp)$">
+    Order Allow,Deny
+    Allow from all
+</FilesMatch>
+
+# Additional security headers
+Header set X-Content-Type-Options "nosniff"
+Header set X-Frame-Options "DENY"
+
+# Disable directory listing
+Options -Indexes

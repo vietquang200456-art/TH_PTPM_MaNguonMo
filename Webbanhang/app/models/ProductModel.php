@@ -11,10 +11,9 @@ class ProductModel
 
     public function getProducts()
     {
-        $query = "SELECT p.id, p.name, p.description, p.price, p.image, c.name as category_name
+        $query = "SELECT p.id, p.name, p.description, p.price, c.name as category_name
                     FROM " . $this->table_name . " p
                     LEFT JOIN category c ON p.category_id = c.id";
-
         $stmt = $this->conn->prepare($query);
         $stmt->execute();
         $result = $stmt->fetchAll(PDO::FETCH_OBJ);
@@ -22,16 +21,27 @@ class ProductModel
     }
 
     public function getProductById($id)
-    {
-        $query = "SELECT * FROM " . $this->table_name . " WHERE id = :id";
-        $stmt = $this->conn->prepare($query);
-        $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-        $stmt->execute();
-        $result = $stmt->fetch(PDO::FETCH_OBJ);
-        return $result;
-    }
+{
+    $query = "
+        SELECT 
+            *,
+            c.name AS category_name
+        FROM " . $this->table_name . " p
+        LEFT JOIN category c
+            ON p.category_id = c.id
+        WHERE p.id = :id
+    ";
 
-    public function addProduct($name, $description, $price, $category_id, $image)
+    $stmt = $this->conn->prepare($query);
+
+    $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+
+    $stmt->execute();
+
+    return $stmt->fetch(PDO::FETCH_OBJ);
+}
+
+    public function addProduct($name, $description, $price, $category_id)
     {
         $errors = [];
         if (empty($name)) {
@@ -53,8 +63,6 @@ class ProductModel
         // Làm sạch dữ liệu chuỗi text
         $name = htmlspecialchars(strip_tags($name));
         $description = htmlspecialchars(strip_tags($description));
-        $image = htmlspecialchars(strip_tags($image));
-        
         // Ép kiểu số cho đúng bản chất dữ liệu
         $price = (float)$price;
         $category_id = (int)$category_id;
@@ -63,25 +71,21 @@ class ProductModel
         $stmt->bindParam(':description', $description);
         $stmt->bindParam(':price', $price);
         $stmt->bindParam(':category_id', $category_id, PDO::PARAM_INT);
-        $stmt->bindParam(':image', $image);
 
         if ($stmt->execute()) {
             return true;
         }
-
         return false;
     }
 
-    public function updateProduct($id, $name, $description, $price, $category_id, $image)
+    public function updateProduct($id, $name, $description, $price, $category_id)
     {
-        $query = "UPDATE " . $this->table_name . " SET name=:name, description=:description, price=:price, category_id=:category_id, image=:image WHERE id=:id";
+        $query = "UPDATE " . $this->table_name . " SET name=:name, description=:description, price=:price, category_id=:category_id WHERE id=:id";
         $stmt = $this->conn->prepare($query);
 
         // Làm sạch dữ liệu chuỗi text
         $name = htmlspecialchars(strip_tags($name));
         $description = htmlspecialchars(strip_tags($description));
-        $image = htmlspecialchars(strip_tags($image));
-        
         // Ép kiểu số
         $id = (int)$id;
         $price = (float)$price;
@@ -92,8 +96,6 @@ class ProductModel
         $stmt->bindParam(':description', $description);
         $stmt->bindParam(':price', $price);
         $stmt->bindParam(':category_id', $category_id, PDO::PARAM_INT);
-        $stmt->bindParam(':image', $image);
-        
         if ($stmt->execute()) {
             return true;
         }
@@ -109,6 +111,64 @@ class ProductModel
             return true;
         }
         return false;
+    }
+    public function getFilteredProducts($keyword = '',$category_id = '')
+    {
+    $query = "
+        SELECT
+            p.*,
+            c.name AS category_name
+        FROM product p
+        LEFT JOIN category c
+            ON p.category_id = c.id
+        WHERE 1
+    ";
+
+    // Tìm kiếm tên
+    if (!empty($keyword)) {
+
+        $query .= "
+            AND p.name LIKE :keyword
+        ";
+    }
+
+    // Lọc category
+    if (!empty($category_id)) {
+
+        $query .= "
+            AND p.category_id = :category_id
+        ";
+    }
+
+    $query .= "
+        ORDER BY p.id DESC
+    ";
+
+    $stmt = $this->conn->prepare($query);
+
+    // Bind keyword
+    if (!empty($keyword)) {
+
+        $search = "%$keyword%";
+
+        $stmt->bindParam(
+            ':keyword',
+            $search
+        );
+    }
+
+    // Bind category
+    if (!empty($category_id)) {
+
+        $stmt->bindParam(
+            ':category_id',
+            $category_id
+        );
+    }
+
+    $stmt->execute();
+
+    return $stmt->fetchAll(PDO::FETCH_OBJ);
     }
 }
 ?>
